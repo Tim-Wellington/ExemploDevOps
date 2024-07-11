@@ -1,0 +1,59 @@
+# Xamarin.Android
+# Build a Xamarin.Android project.
+# Add steps that test, sign, and distribute an app, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/xamarin
+
+trigger:
+- main
+
+pool:
+  vmImage: 'macos-14'
+
+variables:
+  buildConfiguration: 'Release'
+  outputDirectory: '$(build.binariesDirectory)/$(buildConfiguration)'
+
+steps:
+
+- task: JavaToolInstaller@0
+  inputs:
+    versionSpec: '21'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+- task: SonarQubePrepare@6
+  inputs:
+    SonarQube: 'SonarQube Canal .NET'
+    scannerMode: 'MSBuild'
+    projectKey: 'buildandroid'
+    projectName: 'buildandroid'
+    extraProperties: |
+      sonar.qualitygate.wait=true
+      sonar.branch.name=main
+    
+- task: CmdLine@2
+  displayName: 'Instalar workaload MAUI'
+  inputs:
+    script: |
+      dotnet workload install maui
+
+- task: CmdLine@2
+  displayName: 'Restaurar pacotes'
+  inputs:
+    script: |
+      dotnet restore *.sln 
+
+- task: CmdLine@2
+  displayName: 'Compilar Android'
+  inputs:
+    script: |
+      dotnet build -f net8.0-android
+
+- task: SonarQubeAnalyze@6
+  inputs:
+    jdkversion: 'JAVA_HOME_21_X64'
+
+- task: SonarQubePublish@6
+  condition: always()
+  inputs:
+    pollingTimeoutSec: '300'
